@@ -1,0 +1,106 @@
+<html>
+<head>
+	<link rel="stylesheet" href="/static/index.css">
+ 	<title>Realtime ToDo List</title>
+</head>
+<body>
+	<section class="todoapp">
+		<header class="header">
+			<h1>Todos</h1>
+			<input class="new-todo" placeholder="What needs to be done?"autofocus="" onkeypress="addItem(event)">
+		</header>
+
+		<section class="main">
+			<ul class="todo-list"></ul>
+		</section>
+
+		<footer class="footer"></footer>  
+	</section>
+
+	<script src="https://js.pusher.com/4.1/pusher.min.js"></script>
+	<script>
+		Pusher.logToConsole = true;
+
+		const pusher = new Pusher('de825b7cc253e460debb',{
+			cluster : 'ap2',
+			encrypted : true
+		});
+
+		const channel = pusher.subscribe('todo');
+
+		channel.bind('item-added', data => {
+			appendToList(data);
+		});
+
+		channel.bind('item-removed', data => {
+			let item = document.querySelector(`#${data.id}`);
+			item.parentNode.removeChild(item);
+		});
+
+		channel.bind('item-updated', data => {
+			let elem = document.querySelector(`#${data.id} .toggle`);
+			let item = document.querySelector(`#${data.id}`);
+			elem.dataset.completed = data.completed;
+			elem.dataset.checked = data.completed == 1;
+			item.classList.toggle("completed");
+		});
+
+		function addItem(e){
+			if (e.which == 13 || e.keyCode == 13) {
+        		let item = document.querySelector('.new-todo');
+        		fetch('/add-todo', {
+		          	method: 'post',
+		          	body: JSON.stringify({ 
+		            	id: `item-${Date.now()}`,
+		            	value: item.value,
+		            	completed: 0
+		          		})
+		        })
+        		.then(resp => {
+          			item.value = ""
+        		});
+     		}
+    	}
+
+		function removeItem(id){
+			fetch(`/remove-todo/${id}`);
+		}
+
+		function toggleComplete(elem){
+			let id = elem.dataset.id,
+      		completed = (elem.dataset.completed == "1" ? "0" : "1");
+      		fetch(`/update-todo/${id}`, {
+        		method: 'post',
+        		body: JSON.stringify({ completed })
+      		});
+    	}	 
+
+		function appendToList(data){
+			let html = `
+      			<li id="${data.id}">
+        			<div class="view">
+          				<input class="toggle" type="checkbox" onclick="toggleComplete(this)" data-completed="${data.completed}" data-id="${data.id}">
+          				<label>${data.value}</label>
+          			<button class="destroy" onclick="removeItem('${data.id}')"></button>
+        			</div>
+      			</li>`;
+      		let list = document.querySelector(".todo-list")
+      		list.innerHTML += html;
+    	};
+	</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
